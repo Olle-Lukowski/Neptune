@@ -21,18 +21,29 @@ public:
 
   void Reset();
   void Log();
+
+  void MakeMove(Move move, int color);
   
   std::vector<Move> GenerateLegalMoves(int color);
 
 private:
   void InitMoves();
 
-  Bitboard MaskOffIllegalMoves(Bitboard potentialMoves, int color);
-  void AddMovesToList(std::vector<Move> &moveList, Bitboard legalMoves, int fromSquare);
+  bool IsMovePuttingKingInCheck(Move move, int color, int pieceType);
+  Bitboard GenerateAllAttackedSquares(int color);
+
+  Bitboard GenerateRookMovesFromSquare(int square);
+  Bitboard GenerateBishopMovesFromSquare(int square);
+
+  Bitboard MaskOffIllegalMoves(Bitboard potentialMoves, int color, int pieceType, int square);
+  void AddMovesToList(std::vector<Move> &moveList, Bitboard legalMoves, int fromSquare, int color, int pieceType);
 
 private:
   Bitboard pieces[2][6];
+  Bitboard occupied;
+  Bitboard occupiedColor[2];
   Bitboard pawnMoves[2][64];
+  Bitboard pawnCaptureMoves[2][64];
   Bitboard knightMoves[64];
   Bitboard bishopMoves[64];
   Bitboard rookMoves[64];

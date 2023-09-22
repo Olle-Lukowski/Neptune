@@ -67,6 +67,22 @@ public:
     return lsbIndex;
   }
 
+  inline int GetLeastSignificantBit() const {
+    int lsbIndex;
+
+#if defined(__GNUC__) || defined(__clang__)
+    lsbIndex = __builtin_ctzll(board);
+#elif defined(_MSC_VER)
+    unsigned long index;  // Note: MSVC uses 'unsigned long'
+    _BitScanForward64(&index, board);
+    lsbIndex = static_cast<int>(index);
+#else
+    lsbIndex = BitScanForwardPortable(board); // Your portable version
+#endif
+
+    return lsbIndex;
+  }
+
   inline bool IsEmpty() const {
     return board == 0;
   }
@@ -84,6 +100,17 @@ public:
     return *this;
   }
 
+  inline Bitboard WhitePawnCaptureMoves(int square) {
+    Clear();
+    int x = square % 8;
+    int y = square / 8;
+
+    if (x > 0 && y < 7) SetBit((y + 1) * 8 + (x - 1));  // Capture left
+    if (x < 7 && y < 7) SetBit((y + 1) * 8 + (x + 1));  // Capture right
+
+    return *this;
+  }
+
   inline Bitboard BlackPawnMoves(int square) {
     Clear();
     uint64_t position = 1ULL << square;
@@ -93,6 +120,17 @@ public:
     if (square >= 48 && square <= 55) {
       board |= (position >> 16) & emptySquares;
     }
+
+    return *this;
+  }
+
+  inline Bitboard BlackPawnCaptureMoves(int square) {
+    Clear();
+    int x = square % 8;
+    int y = square / 8;
+
+    if (x > 0 && y > 0) SetBit((y - 1) * 8 + (x - 1));  // Capture left
+    if (x < 7 && y > 0) SetBit((y - 1) * 8 + (x + 1));  // Capture right
 
     return *this;
   }

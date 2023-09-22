@@ -9,6 +9,7 @@ public:
   int fromSquare;
   int toSquare;
 
+public:
   Move(int from, int to) : fromSquare(from), toSquare(to) {}
 
   std::string ToAlgebraicNotation() const {
