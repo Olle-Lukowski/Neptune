@@ -2,7 +2,91 @@
 
 #include <iostream>
 
-// Assuming you have a function to generate a Bitboard with single bit set at a given index
+Bitboard pawnMoves[2][64];
+Bitboard pawnCaptureMoves[2][64];
+Bitboard knightMoves[64];
+Bitboard bishopMoves[64];
+Bitboard rookMoves[64];
+Bitboard queenMoves[64];
+Bitboard kingMoves[64];
+
+const int pawnTable[64] = {
+  0,  0,  0,  0,  0,  0,  0,  0,
+  50, 50, 50, 50, 50, 50, 50, 50,
+  10, 10, 20, 30, 30, 20, 10, 10,
+  5,  5, 10, 25, 25, 10,  5,  5,
+  0,  0,  0, 20, 20,  0,  0,  0,
+  5, -5,-10,  0,  0,-10, -5,  5,
+  5, 10, 10,-20,-20, 10, 10,  5,
+  0,  0,  0,  0,  0,  0,  0,  0
+};
+
+const int knightTable[64] = {
+  -50,-40,-30,-30,-30,-30,-40,-50,
+  -40,-20,  0,  0,  0,  0,-20,-40,
+  -30,  0, 10, 15, 15, 10,  0,-30,
+  -30,  5, 15, 20, 20, 15,  5,-30,
+  -30,  0, 15, 20, 20, 15,  0,-30,
+  -30,  5, 10, 15, 15, 10,  5,-30,
+  -40,-20,  0,  5,  5,  0,-20,-40,
+  -50,-40,-30,-30,-30,-30,-40,-50,
+};
+
+const int bishopTable[64] = {
+  -20,-10,-10,-10,-10,-10,-10,-20,
+  -10,  0,  0,  0,  0,  0,  0,-10,
+  -10,  0,  5, 10, 10,  5,  0,-10,
+  -10,  5,  5, 10, 10,  5,  5,-10,
+  -10,  0, 10, 10, 10, 10,  0,-10,
+  -10, 10, 10, 10, 10, 10, 10,-10,
+  -10,  5,  0,  0,  0,  0,  5,-10,
+  -20,-10,-10,-10,-10,-10,-10,-20,
+};
+
+const int rookTable[64] = {
+    0,  0,  0,  0,  0,  0,  0,  0,
+    5, 10, 10, 10, 10, 10, 10,  5,
+   -5,  0,  0,  0,  0,  0,  0, -5,
+   -5,  0,  0,  0,  0,  0,  0, -5,
+   -5,  0,  0,  0,  0,  0,  0, -5,
+   -5,  0,  0,  0,  0,  0,  0, -5,
+   -5,  0,  0,  0,  0,  0,  0, -5,
+    0,  0,  0,  5,  5,  0,  0,  0
+};
+
+const int queenTable[64] = {
+  -20,-10,-10, -5, -5,-10,-10,-20,
+  -10,  0,  0,  0,  0,  0,  0,-10,
+  -10,  0,  5,  5,  5,  5,  0,-10,
+   -5,  0,  5,  5,  5,  5,  0, -5,
+    0,  0,  5,  5,  5,  5,  0, -5,
+  -10,  5,  5,  5,  5,  5,  0,-10,
+  -10,  0,  5,  0,  0,  0,  0,-10,
+  -20,-10,-10, -5, -5,-10,-10,-20
+};
+
+const int kingTable[64] = {
+  -30,-40,-40,-50,-50,-40,-40,-30,
+  -30,-40,-40,-50,-50,-40,-40,-30,
+  -30,-40,-40,-50,-50,-40,-40,-30,
+  -30,-40,-40,-50,-50,-40,-40,-30,
+  -20,-30,-30,-40,-40,-30,-30,-20,
+  -10,-20,-20,-20,-20,-20,-20,-10,
+   20, 20,  0,  0,  0,  0, 20, 20,
+   20, 30, 10,  0,  0, 10, 30, 20
+};
+
+const int kingEndGameTable[64] = {
+  -50,-40,-30,-20,-20,-30,-40,-50,
+  -30,-20,-10,  0,  0,-10,-20,-30,
+  -30,-10, 20, 30, 30, 20,-10,-30,
+  -30,-10, 30, 40, 40, 30,-10,-30,
+  -30,-10, 30, 40, 40, 30,-10,-30,
+  -30,-10, 20, 30, 30, 20,-10,-30,
+  -30,-30,  0,  0,  0,  0,-30,-30,
+  -50,-30,-30,-30,-30,-30,-30,-50
+};
+
 Bitboard SingleBit(int index) {
   Bitboard bb;
   bb.SetBit(index);
@@ -24,7 +108,6 @@ Bitboard BLACK_QUEENSIDE_PASSING_KING_SQUARE = SingleBit(58) | SingleBit(59);
 Bitboard BLACK_KINGSIDE_PASSING_KING_SQUARE = SingleBit(61) | SingleBit(62);
 
 Board::Board() {
-  InitMoves();
 }
 
 void Board::Reset() {
@@ -238,6 +321,75 @@ void Board::InitMoves() {
     queenMoves[square] = bishopMoves[square] | rookMoves[square];
   }
 }
+
+int Board::EvaluateMaterial() {
+  int white_material = 0;
+  int black_material = 0;
+
+  for (int square = 0; square < 64; ++square) {
+    ColoredPiece piece = GetPieceAt(square);  // Assuming you have this function
+    if (piece.pieceType == EMPTY || piece.pieceColor == EMPTY) continue;
+
+    int value = 0;
+    switch (piece.pieceType) {
+      case PAWN: value = 1; break;
+      case KNIGHT: value = 3; break;
+      case BISHOP: value = 3; break;
+      case ROOK: value = 5; break;
+      case QUEEN: value = 9; break;
+      case KING: value = 100; break;
+    }
+
+    if (piece.pieceColor == WHITE) {
+      white_material += value;
+    } else {
+      black_material -= value;  // Assuming black pieces are negative
+    }
+  }
+  return white_material + black_material;  // Will be positive if white is winning, negative if black is
+}
+
+int Board::EvaluateBoard() {
+  int score = 0;
+
+  for (int square = 0; square < 64; ++square) {
+    ColoredPiece p = GetPieceAt(square);
+    if (p.pieceColor == EMPTY || p.pieceType == EMPTY) continue;
+    int tableIndex = p.pieceColor == BLACK ? 63 - square : square;
+    int subScore = 0;
+
+    switch (p.pieceType) {
+      case PAWN:
+        subScore += pawnTable[tableIndex];
+        break;
+      case KNIGHT:
+        subScore += knightTable[tableIndex];
+        break;
+      case BISHOP:
+        subScore += bishopTable[tableIndex];
+        break;
+      case ROOK:
+        subScore += rookTable[tableIndex];
+        break;
+      case QUEEN:
+        subScore += queenTable[tableIndex];
+        break;
+      case KING:
+        subScore += kingTable[tableIndex];
+        break;
+        
+    }
+
+    if (p.pieceColor == BLACK) {
+      subScore = -subScore;
+    }
+
+    score += subScore;
+  }
+
+  return score + (EvaluateMaterial() * 10);
+}
+
 
 bool Board::IsMovePuttingKingInCheck(Move move, int color, int pieceType) {
   // Temporarily make the move on the board
@@ -478,3 +630,39 @@ bool Board::IsSquareAttacked(Bitboard targetSquares, int attackerColor) {
     return false;
 }
 
+ColoredPiece Board::GetPieceAt(int square) {
+  ColoredPiece piece;
+  piece.pieceColor = EMPTY;
+  piece.pieceType = EMPTY;
+  for (int color = WHITE; color <= BLACK; ++color) {
+    for (int pieceType = PAWN; pieceType <= KING; ++pieceType) {
+      if (pieces[color][pieceType].IsSet(square)) {
+        piece.pieceType = pieceType;
+        piece.pieceColor = color;
+        return piece;
+      }
+    }
+  }
+
+  return piece;
+}
+
+int MiniMax(Board board, int depth, bool isMaximizing) {
+  if (depth == 0) {
+    return board.EvaluateBoard();
+  }
+
+  int bestValue = isMaximizing ? -9999 : 9999;
+
+  for (Move move : board.GenerateLegalMoves(isMaximizing ? WHITE : BLACK)) {
+    Board tempBoard = board;
+    tempBoard.MakeMove(move, isMaximizing ? WHITE : BLACK); // set color to !isMaximizing
+    int boardValue = MiniMax(tempBoard, depth - 1, !isMaximizing);
+
+    bestValue = isMaximizing ? 
+      std::max(bestValue, boardValue) : 
+      std::min(bestValue, boardValue);
+  }
+
+  return bestValue;
+}

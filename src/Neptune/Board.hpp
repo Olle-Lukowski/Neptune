@@ -14,6 +14,12 @@
 #define ROOK 3
 #define QUEEN 4
 #define KING 5
+#define EMPTY -1
+
+struct ColoredPiece {
+  int pieceType;
+  int pieceColor;
+};
 
 class Board {
 public:
@@ -26,8 +32,12 @@ public:
   
   std::vector<Move> GenerateLegalMoves(int color);
 
-private:
   void InitMoves();
+
+  int EvaluateMaterial();
+  int EvaluateBoard();
+
+private:
 
   bool IsMovePuttingKingInCheck(Move move, int color, int pieceType);
   Bitboard GenerateAllAttackedSquares(int color);
@@ -41,17 +51,12 @@ private:
   bool IsSquareAttacked(int square, int attackerColor);
   bool IsSquareAttacked(Bitboard targetSquares, int attackerColor);
 
+  ColoredPiece GetPieceAt(int square);
+
 private:
   Bitboard pieces[2][6];
   Bitboard occupied;
   Bitboard occupiedColor[2];
-  Bitboard pawnMoves[2][64];
-  Bitboard pawnCaptureMoves[2][64];
-  Bitboard knightMoves[64];
-  Bitboard bishopMoves[64];
-  Bitboard rookMoves[64];
-  Bitboard queenMoves[64];
-  Bitboard kingMoves[64];
 
   bool canEnPassant;
   Move lastMove = {0, 0};
@@ -59,6 +64,8 @@ private:
   bool kingMoved[2] = {false, false};
   bool rookMoved[2][2] = {{false, false}, {false, false}};
 };
+
+int MiniMax(Board board, int depth, bool isMaximizing);
 
 #define WHITE_QUEENSIDE_CASTLE_TO_SQAURE 2
 #define WHITE_KINGSIDE_CASTLE_TO_SQAURE 6
