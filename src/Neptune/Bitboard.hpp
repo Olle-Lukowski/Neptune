@@ -87,6 +87,10 @@ public:
     return board == 0;
   }
 
+  inline bool IsNotEmpty() const {
+    return board != 0;
+  }
+
   inline Bitboard WhitePawnMoves(int square) {
     Clear();
     uint64_t position = 1ULL << square;

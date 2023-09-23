@@ -2,6 +2,27 @@
 
 #include <iostream>
 
+// Assuming you have a function to generate a Bitboard with single bit set at a given index
+Bitboard SingleBit(int index) {
+  Bitboard bb;
+  bb.SetBit(index);
+  return bb;
+}
+
+// For white
+Bitboard WHITE_QUEENSIDE_EMPTY_SQUARES_MASK = SingleBit(1) | SingleBit(2) | SingleBit(3);
+Bitboard WHITE_KINGSIDE_EMPTY_SQUARES_MASK = SingleBit(5) | SingleBit(6);
+
+Bitboard WHITE_QUEENSIDE_PASSING_KING_SQUARE = SingleBit(2) | SingleBit(3);
+Bitboard WHITE_KINGSIDE_PASSING_KING_SQUARE = SingleBit(5) | SingleBit(6);
+
+// For black
+Bitboard BLACK_QUEENSIDE_EMPTY_SQUARES_MASK = SingleBit(57) | SingleBit(58) | SingleBit(59);
+Bitboard BLACK_KINGSIDE_EMPTY_SQUARES_MASK = SingleBit(61) | SingleBit(62);
+
+Bitboard BLACK_QUEENSIDE_PASSING_KING_SQUARE = SingleBit(58) | SingleBit(59);
+Bitboard BLACK_KINGSIDE_PASSING_KING_SQUARE = SingleBit(61) | SingleBit(62);
+
 Board::Board() {
   InitMoves();
 }
@@ -63,6 +84,42 @@ void Board::MakeMove(Move move, int color) {
         pieces[color][PAWN].ClearBit(move.toSquare);
         pieces[color][move.promotionPiece].SetBit(move.toSquare);
       }
+      // tracking if king & rook moved for castling
+      if (piece == KING) {
+        kingMoved[color] = true;
+
+        // castling
+        switch (move.toSquare) {
+          case WHITE_QUEENSIDE_CASTLE_TO_SQAURE:
+            // move the rook
+            pieces[color][ROOK].ClearBit(WHITE_QUEENSIDE_ROOK_FROM_SQUARE);
+            pieces[color][ROOK].SetBit(WHITE_QUEENSIDE_ROOK_TO_SQUARE);
+            break;
+          case WHITE_KINGSIDE_CASTLE_TO_SQAURE:
+            // move the rook
+            pieces[color][ROOK].ClearBit(WHITE_KINGSIDE_ROOK_FROM_SQUARE);
+            pieces[color][ROOK].SetBit(WHITE_KINGSIDE_ROOK_TO_SQUARE);
+            break;
+          case BLACK_QUEENSIDE_CASTLE_TO_SQAURE:
+            // move the rook
+            pieces[color][ROOK].ClearBit(BLACK_QUEENSIDE_ROOK_FROM_SQUARE);
+            pieces[color][ROOK].SetBit(BLACK_QUEENSIDE_ROOK_TO_SQUARE);
+            break;
+          case BLACK_KINGSIDE_CASTLE_TO_SQAURE:
+            // move the rook
+            pieces[color][ROOK].ClearBit(BLACK_KINGSIDE_ROOK_FROM_SQUARE);
+            pieces[color][ROOK].SetBit(BLACK_KINGSIDE_ROOK_TO_SQUARE);
+            break;
+        }
+      }
+      if (piece == ROOK) {
+        if (move.fromSquare == 0 || move.fromSquare == 56) {
+          rookMoved[color][0] = true;
+        }
+        if (move.fromSquare == 7 || move.fromSquare == 63) {
+          rookMoved[color][1] = true;
+        }
+      }
     }
   }
 
@@ -103,7 +160,7 @@ std::vector<Move> Board::GenerateLegalMoves(int color) {
         case BISHOP:
           potentialMoves = bishopMoves[square];
           break;
-        case ROOK:
+        case ROOK:  
           potentialMoves = rookMoves[square];
           break;
         case QUEEN:
@@ -111,6 +168,29 @@ std::vector<Move> Board::GenerateLegalMoves(int color) {
           break;
         case KING:
           potentialMoves = kingMoves[square];
+          // castling
+          if (!kingMoved[color]) {
+            // queenside 
+            if (color == WHITE) {
+              // Queenside
+              if (!rookMoved[color][0] && (occupied & WHITE_QUEENSIDE_EMPTY_SQUARES_MASK).IsEmpty() && !IsSquareAttacked(WHITE_QUEENSIDE_PASSING_KING_SQUARE, !color)) {
+                potentialMoves.SetBit(WHITE_QUEENSIDE_CASTLE_TO_SQAURE);
+              }
+              // Kingside
+              if (!rookMoved[color][1] && (occupied & WHITE_KINGSIDE_EMPTY_SQUARES_MASK).IsEmpty() && !IsSquareAttacked(WHITE_KINGSIDE_PASSING_KING_SQUARE, !color)) {
+                potentialMoves.SetBit(WHITE_KINGSIDE_CASTLE_TO_SQAURE);
+              }
+            } else {
+              // Queenside
+              if (!rookMoved[color][0] && (occupied & BLACK_QUEENSIDE_EMPTY_SQUARES_MASK).IsEmpty() && !IsSquareAttacked(BLACK_QUEENSIDE_PASSING_KING_SQUARE, !color)) {
+                potentialMoves.SetBit(BLACK_QUEENSIDE_CASTLE_TO_SQAURE);
+              }
+              // Kingside
+              if (!rookMoved[color][1] && (occupied & BLACK_KINGSIDE_EMPTY_SQUARES_MASK).IsEmpty() && !IsSquareAttacked(BLACK_KINGSIDE_PASSING_KING_SQUARE, !color)) {
+                potentialMoves.SetBit(BLACK_KINGSIDE_CASTLE_TO_SQAURE);
+              }
+            }
+          }
           break;
       }
 
@@ -308,6 +388,7 @@ Bitboard Board::MaskOffIllegalMoves(Bitboard potentialMoves, int color, int piec
     Bitboard slidingMoves;
     if (pieceType == ROOK) {
       slidingMoves = GenerateRookMovesFromSquare(square);
+      potentialMoves &= slidingMoves;
     } else if (pieceType == BISHOP) {
       Bitboard slidingMoves = GenerateBishopMovesFromSquare(square);
       potentialMoves &= slidingMoves;
@@ -317,9 +398,6 @@ Bitboard Board::MaskOffIllegalMoves(Bitboard potentialMoves, int color, int piec
       Bitboard slidingMoves = diagonalMoves | straightMoves;
       potentialMoves &= slidingMoves;
     }
-
-    // Combine with the masked off potential moves
-    potentialMoves &= slidingMoves;
   }
   
   // Further logic for pawn captures, castling, etc.
@@ -348,3 +426,55 @@ void Board::AddMovesToList(std::vector<Move> &moveList, Bitboard legalMoves, int
     moveList.push_back(move);
   }
 }
+
+bool Board::IsSquareAttacked(int square, int attackerColor) {
+    // For each type of attacking piece, generate the moves that would attack the square.
+    // Then intersect it with the positions of those pieces on the board. If non-empty, the square is attacked.
+  
+    // Check for pawn attacks
+    Bitboard potentialPawnAttacks = (attackerColor == WHITE) ? pawnMoves[BLACK][square] : pawnMoves[WHITE][square];
+    if ((potentialPawnAttacks & pieces[attackerColor][PAWN]).IsNotEmpty()) {
+        return true;
+    }
+
+    // Check for knight attacks
+    if ((knightMoves[square] & pieces[attackerColor][KNIGHT]).IsNotEmpty()) {
+        return true;
+    }
+
+    // Check for bishop attacks
+    Bitboard bishopAttackers = GenerateBishopMovesFromSquare(square) & pieces[attackerColor][BISHOP];
+    if (bishopAttackers.IsNotEmpty()) {
+        return true;
+    }
+
+    // Check for rook attacks
+    Bitboard rookAttackers = GenerateRookMovesFromSquare(square) & pieces[attackerColor][ROOK];
+    if (rookAttackers.IsNotEmpty()) {
+        return true;
+    }
+
+    // Check for queen attacks
+    Bitboard queenAttackers = (GenerateBishopMovesFromSquare(square) | GenerateRookMovesFromSquare(square)) & pieces[attackerColor][QUEEN];
+    if (queenAttackers.IsNotEmpty()) {
+        return true;
+    }
+
+    // Check for king attacks
+    if ((kingMoves[square] & pieces[attackerColor][KING]).IsNotEmpty()) {
+        return true;
+    }
+  
+    return false;
+}
+
+bool Board::IsSquareAttacked(Bitboard targetSquares, int attackerColor) {
+    while (!targetSquares.IsEmpty()) {
+        int square = targetSquares.PopLeastSignificantBit();
+        if (IsSquareAttacked(square, attackerColor)) {
+            return true;
+        }
+    }
+    return false;
+}
+

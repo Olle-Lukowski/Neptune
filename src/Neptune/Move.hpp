@@ -18,6 +18,16 @@ public:
     return SquareToAlgebraic(fromSquare) + SquareToAlgebraic(toSquare);
   }
 
+  static Move FromAlgebraicNotation(const std::string& moveStr) {
+    int fromSquare = AlgebraicToSquare(moveStr.substr(0, 2));
+    int toSquare = AlgebraicToSquare(moveStr.substr(2, 2));
+    return Move(fromSquare, toSquare);
+  }
+
+  bool operator==(const Move& other) const {
+    return fromSquare == other.fromSquare && toSquare == other.toSquare;
+  }
+
 private:
   static std::string SquareToAlgebraic(int square) {
     int x = square % 8;
@@ -26,6 +36,12 @@ private:
     std::stringstream ss;
     ss << char('a' + x) << (y + 1);
     return ss.str();
+  }
+
+  static int AlgebraicToSquare(const std::string& str) {
+    int x = str[0] - 'a';
+    int y = str[1] - '1';
+    return y * 8 + x;
   }
 };
 
