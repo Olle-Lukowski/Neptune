@@ -50,6 +50,8 @@ private:
   Bitboard queenMoves[64];
   Bitboard kingMoves[64];
 
+  bool canEnPassant;
+  Move lastMove = {0, 0};
 };
 
 #endif // NP_BOARD_HPP

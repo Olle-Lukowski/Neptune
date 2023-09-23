@@ -8,6 +8,8 @@ class Move {
 public:
   int fromSquare;
   int toSquare;
+  bool isCastle;
+  int promotionPiece = -1;
 
 public:
   Move(int from, int to) : fromSquare(from), toSquare(to) {}

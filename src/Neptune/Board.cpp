@@ -1,5 +1,7 @@
 #include "Board.hpp"
 
+#include <iostream>
+
 Board::Board() {
   InitMoves();
 }
@@ -38,6 +40,7 @@ void Board::Log() {
 }
 
 void Board::MakeMove(Move move, int color) {
+  canEnPassant = false;
 
   for (int piece = PAWN; piece <= KING; ++piece) {
     bool actualType = false;
@@ -51,6 +54,15 @@ void Board::MakeMove(Move move, int color) {
     if (actualType) {
       // Place the piece at its destination square
       pieces[color][piece].SetBit(move.toSquare);
+      // en passant
+      if (piece == PAWN && abs(move.fromSquare - move.toSquare) == 16) {
+        canEnPassant = true;
+      }
+      // promotion
+      if (move.promotionPiece != -1) {
+        pieces[color][PAWN].ClearBit(move.toSquare);
+        pieces[color][move.promotionPiece].SetBit(move.toSquare);
+      }
     }
   }
 
@@ -66,6 +78,8 @@ void Board::MakeMove(Move move, int color) {
     occupiedColor[WHITE] |= pieces[WHITE][piece];
     occupiedColor[BLACK] |= pieces[BLACK][piece];
   }
+
+  lastMove = move;
 }
 
 
@@ -109,7 +123,18 @@ std::vector<Move> Board::GenerateLegalMoves(int color) {
       // Inside GenerateLegalMoves function
       if (pieceType == PAWN) {
         Bitboard captureMoves = pawnCaptureMoves[color][square];
-        captureMoves &= occupiedColor[!color]; // Keep only squares occupied by the enemy
+
+        Bitboard attackableSquares = occupiedColor[!color];
+
+        if (canEnPassant) {
+          if (color == WHITE) {
+            attackableSquares.SetBit(lastMove.toSquare + 8);
+          } else {
+            attackableSquares.SetBit(lastMove.toSquare - 8);
+          }
+        }
+
+        captureMoves &= attackableSquares; // Keep only squares occupied by the enemy
         // Convert this legal move board to a list of moves and append to legalMoves
         AddMovesToList(legalMoves, captureMoves, square, color, pieceType);
       }
@@ -307,6 +332,16 @@ void Board::AddMovesToList(std::vector<Move> &moveList, Bitboard legalMoves, int
   while (!legalMoves.IsEmpty()) {
     int toSquare = legalMoves.PopLeastSignificantBit();
     Move move(fromSquare, toSquare);
+    if (pieceType == PAWN && (move.toSquare >= 56 || move.toSquare <= 7)) {
+      for (int piece = KNIGHT; piece < KING; ++piece) {
+        Move promotionMove(fromSquare, toSquare);
+        promotionMove.promotionPiece = piece;
+        if (IsMovePuttingKingInCheck(promotionMove, color, pieceType)) {
+          continue;
+        }
+        moveList.push_back(promotionMove);
+      } 
+    }
     if (IsMovePuttingKingInCheck(move, color, pieceType)) {
       continue;
     }
